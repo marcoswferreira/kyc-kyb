@@ -1,0 +1,25 @@
+## .NET & Visual Studio
+[Bb]in/
+[Oo]bj/
+[Tt]est[Rr]esults/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+.vs/
+.idea/
+.vscode/
+
+## Build & Test outputs
+*.coverage
+*.coveragexml
+coverage.cobertura.xml
+
+## Environment variables
+.env
+.env.local
+appsettings.Development.local.json
+
+## OS generated
+.DS_Store
+Thumbs.db

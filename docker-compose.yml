@@ -1,0 +1,37 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: kyc-kyb-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: kyc_kyb_db
+      POSTGRES_USER: kyc_admin
+      POSTGRES_PASSWORD: kyc_secret_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kyc_admin -d kyc_kyb_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  kyc-kyb-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: kyc-kyb-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "5000:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=kyc_kyb_db;Username=kyc_admin;Password=kyc_secret_password"
+      GEMINI_API_KEY: "${GEMINI_API_KEY:-}"
+
+volumes:
+  postgres_data:
