@@ -19,3 +19,4 @@ WORKDIR /app
 EXPOSE 8080
 COPY --from=build /app/publish .
 ENTRYPOINT ["dotnet", "MiniKycKyb.API.dll"]
+

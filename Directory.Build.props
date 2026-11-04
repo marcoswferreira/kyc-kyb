@@ -2,5 +2,7 @@
   <PropertyGroup>
     <!-- Exclui código gerado por compiladores e geradores OpenAPI da cobertura -->
     <ExcludeByFile>**/Generated/**/*;**/*.g.cs;**/OpenApiXmlCommentSupport_generated*</ExcludeByFile>
+    <!-- Desativa auditoria de rede do NuGet para builds rápidos offline / sandboxed -->
+    <NuGetAudit>false</NuGetAudit>
   </PropertyGroup>
 </Project>
