@@ -73,6 +73,18 @@ Ao iniciar a aplicação, a rotina `DatabaseMigrator.MigrateDatabaseAsync()`:
 
 ---
 
+## 🔄 Pipeline de Integração Contínua (CI/CD com GitHub Actions)
+
+O repositório conta com um pipeline automatizado de alta confiabilidade definido em `.github/workflows/ci.yml`:
+
+1. **Gate de Single Type per File**: Validação estrita via AST garantindo que nenhum arquivo `.cs` contenha mais de um tipo (classe, interface, enum, struct ou record).
+2. **Build Release (.NET 10)**: Compilação de toda a solução em modo `Release` com tratamento rigoroso de warnings.
+3. **Execução de Testes e Gate de Cobertura (>80%)**: Execução dos 102 testes unitários e de integração com Coverlet, falhando o pipeline caso a cobertura de linhas fique abaixo de 80%.
+4. **Publicação de Relatórios de Cobertura**: Armazenamento automático dos relatórios de cobertura Cobertura XML como artefatos da action.
+5. **Build Docker e Smoke Test**: Construção da imagem Docker multi-stage e teste de fumaça executando requisições contra o contêiner em execução.
+
+---
+
 ## 🔧 Diagnóstico e Resolução de Problemas (Troubleshooting)
 
 ### 1. Erro HTTP 401 Unauthorized

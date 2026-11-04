@@ -4,6 +4,7 @@
 
 **Plataforma corporativa de verificação cadastral (KYC/KYB), análise de risco regulatório e governança de dados pessoais com dados 100% sintéticos.**
 
+[![CI Pipeline](https://github.com/marcoswferreira/kyc-kyb/actions/workflows/ci.yml/badge.svg)](https://github.com/marcoswferreira/kyc-kyb/actions/workflows/ci.yml)
 [![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
 [![C# 14](https://img.shields.io/badge/C%23-14.0-239120?logo=csharp&logoColor=white)](https://learn.microsoft.com/dotnet/csharp/)
 [![xUnit](https://img.shields.io/badge/Tests-xUnit-blue)](https://xunit.net/)
@@ -25,7 +26,8 @@ A **Mini-Plataforma KYC/KYB** é uma solução para checagem cadastral de pessoa
 Construída sobre o ecossistema moderno do **.NET 10**, a aplicação orquestra dezenas de checagens em paralelo contra provedores simulados com dados 100% sintéticos, aplicando padrões avançados de resiliência (**Circuit Breaker**, **Timeout**, **Cache** e **Degradação Graciosa com Resultados Parciais**).
 
 ### 🎯 Diferenciais Regulatórios & Técnicos
-- 📑 **Suporte Antecipado ao CNPJ Alfanumérico (IN RFB nº 2.229/2024)**: Compatível com a transição oficial da Receita Federal do Brasil (implantação em produção em **julho de 2026**).
+
+- 📑 **CNPJ Alfanumérico (IN RFB nº 2.229/2024)**: Compatível com a transição oficial da Receita Federal do Brasil (implantação em produção em **julho de 2026**).
 - ⚖️ **LGPD Artigo 20 por Design (Human-in-the-Loop)**: O motor automatizado **nunca reprova ou desqualifica um titular sozinho**. Aponta riscos e exige parecer formal de um analista humano habilitado.
 - ⛓️ **Trilha de Auditoria Criptográfica (*Cryptographic Hash Chain*)**: Cada evento encadeia o hash SHA-256 do registro anterior, garantindo imutabilidade e não-repúdio.
 - 🤖 **Assistente de IA Dual-Mode (Google Gemini + Fallback Heurístico)**: Resumo neutro grounded em evidências, com citação de hashes e advertência legal explícita.
@@ -122,7 +124,7 @@ sequenceDiagram
 ## 🌟 Os 7 Pilares da Plataforma
 
 | # | Pilar | Destaques Técnicos | Documentação Detalhada |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | **1** | **CNPJ Alfanumérico** | Implementação integral da **IN RFB nº 2.229/2024** (julho/2026). Conversão ASCII (`ASCII - 48`), pesos módulo 11 e mascaramento LGPD (`**.ABC.***0001-**`). | [01-cpf-cnpj-alfanumerico.md](docs/core-pillars/01-cpf-cnpj-alfanumerico.md) |
 | **2** | **Orquestrador Resiliente** | Execução paralela via `Task.WhenAll`, **Circuit Breaker** (Closed/Open/HalfOpen), timeout de 2s, cache com TTL e degradação graciosa com resultado parcial (`CompletedWithWarnings`). | [02-provider-orchestrator-resilience.md](docs/core-pillars/02-provider-orchestrator-resilience.md) |
 | **3** | **Políticas de Risco e Evidências** | Semáforo visual (Verde, Amarelo, Vermelho). Requisito obrigatório **"Por que este item?"** em cada apontamento e **hash SHA-256** de evidência para não-repúdio. | [03-risk-rules-evidence.md](docs/core-pillars/03-risk-rules-evidence.md) |
@@ -184,14 +186,19 @@ kyc-kyb/
 ## 🚀 Inicialização Rápida (Quickstart)
 
 ### Opção 1: Com Docker Compose (Recomendada)
+
 Inicializa a API junto com o banco de dados PostgreSQL 16:
+
 ```bash
 docker compose up -d --build
 ```
+
 Acesse o Swagger interativo em: **`http://localhost:8080/swagger`**
 
 ### Opção 2: Com o .NET 10 CLI Local (Zero Dependências Externas)
+
 Se você não possui Docker instalado, a aplicação inicializa utilizando banco de dados em memória:
+
 ```bash
 # Restaurar e compilar
 dotnet build
@@ -199,6 +206,7 @@ dotnet build
 # Iniciar a API
 dotnet run --project src/MiniKycKyb.API
 ```
+
 A API inicializará em **`http://localhost:5000`**.
 
 ---
@@ -215,7 +223,7 @@ XDG_RUNTIME_DIR=/tmp dotnet test --collect:"XPlat Code Coverage" --settings cove
 ### 📊 Relatório Consolidado de Cobertura
 
 | Projeto de Teste | Quantidade de Testes | Status | Cobertura de Linha |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | **Domain.UnitTests** | **53 testes** | ✅ 100% Passando | **98.55%** |
 | **Application.UnitTests** | **25 testes** | ✅ 100% Passando | **85.12%** |
 | **IntegrationTests** | **24 testes** | ✅ 100% Passando | **~80.00%** |
@@ -237,6 +245,7 @@ chmod +x demo-ats.sh
 ## 💻 Roteiro de Uso via cURL (Tour da API)
 
 ### 1. Disparar Checagem de Candidato (KYC com CPF)
+
 ```bash
 curl -X POST http://localhost:8080/api/v1/checks \
   -H "Content-Type: application/json" \
@@ -253,6 +262,7 @@ curl -X POST http://localhost:8080/api/v1/checks \
 ```
 
 ### 2. Disparar Checagem de Fornecedor (KYB com o novo CNPJ Alfanumérico)
+
 ```bash
 curl -X POST http://localhost:8080/api/v1/checks \
   -H "Content-Type: application/json" \
@@ -269,14 +279,17 @@ curl -X POST http://localhost:8080/api/v1/checks \
 ```
 
 ### 3. Consultar Relatório com Mascaramento LGPD (Perfil Analista)
+
 ```bash
 curl -X GET http://localhost:8080/api/v1/checks/{CHECK_ID} \
   -H "X-Api-Key: sk_live_master_kyc_default_key_12345" \
   -H "X-User-Role: Auditor"
 ```
+
 *(O documento retornará mascarado como `***.982.247-**`)*
 
 ### 4. Revisão Humana Obrigatória (Artigo 20 da LGPD - Perfil Oficial de Compliance)
+
 ```bash
 curl -X POST http://localhost:8080/api/v1/checks/{CHECK_ID}/review \
   -H "Content-Type: application/json" \
@@ -290,6 +303,7 @@ curl -X POST http://localhost:8080/api/v1/checks/{CHECK_ID}/review \
 ```
 
 ### 5. Verificar a Trilha Imutável de Auditoria (*Hash Chain*)
+
 ```bash
 curl -X GET http://localhost:8080/api/v1/audit \
   -H "X-Api-Key: sk_live_master_kyc_default_key_12345"
@@ -306,4 +320,3 @@ Este projeto é disponibilizado sob a licença **MIT**. Consulte o arquivo `LICE
 <div align="center">
 Desenvolvido com foco em excelência arquitetural, conformidade regulatória estrita e alta resiliência.
 </div>
-
