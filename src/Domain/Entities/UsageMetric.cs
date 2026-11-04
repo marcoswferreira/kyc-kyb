@@ -36,3 +36,4 @@ public sealed class UsageMetric : BaseEntity, IAggregateRoot
         SetUpdatedAt(DateTime.UtcNow);
     }
 }
+

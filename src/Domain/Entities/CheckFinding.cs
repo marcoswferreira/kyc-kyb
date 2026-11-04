@@ -66,3 +66,4 @@ public sealed class CheckFinding : BaseEntity
             rawExcerpt);
     }
 }
+

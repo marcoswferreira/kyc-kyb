@@ -88,3 +88,4 @@ public sealed class AuditLogEntry : BaseEntity, IAggregateRoot
         return string.Equals(Hash, expectedHash, StringComparison.OrdinalIgnoreCase);
     }
 }
+

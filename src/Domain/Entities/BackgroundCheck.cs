@@ -188,3 +188,4 @@ public sealed class BackgroundCheck : BaseEntity, IAggregateRoot
         SetUpdatedAt(DateTime.UtcNow);
     }
 }
+

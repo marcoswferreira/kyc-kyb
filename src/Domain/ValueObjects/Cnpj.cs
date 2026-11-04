@@ -120,3 +120,4 @@ public sealed record Cnpj
 
     public override string ToString() => Value;
 }
+

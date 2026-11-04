@@ -11,7 +11,3 @@ public abstract class BaseEntity
         UpdatedAt = updatedAt;
     }
 }
-
-public interface IAggregateRoot
-{
-}

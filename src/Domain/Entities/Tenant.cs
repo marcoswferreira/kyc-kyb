@@ -55,3 +55,4 @@ public sealed class Tenant : BaseEntity, IAggregateRoot
         SetUpdatedAt(DateTime.UtcNow);
     }
 }
+

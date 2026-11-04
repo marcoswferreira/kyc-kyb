@@ -54,3 +54,4 @@ public sealed record ApiKey
             Encoding.UTF8.GetBytes(expectedHash));
     }
 }
+

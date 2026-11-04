@@ -73,3 +73,4 @@ public sealed record Cpf
 
     public override string ToString() => Value;
 }
+
