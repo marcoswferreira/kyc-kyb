@@ -46,14 +46,14 @@ jobs:
           '
 
       - name: Restore Dependencies
-        run: dotnet restore MiniKycKyb.sln
+        run: dotnet restore MiniKycKyb.slnx
 
       - name: Build Solution
-        run: dotnet build MiniKycKyb.sln --no-restore --configuration Release
+        run: dotnet build MiniKycKyb.slnx --no-restore --configuration Release
 
       - name: Run Tests with Code Coverage (>80%)
         run: |
-          dotnet test MiniKycKyb.sln \
+          dotnet test MiniKycKyb.slnx \
             --no-build \
             --configuration Release \
             --collect:"XPlat Code Coverage" \

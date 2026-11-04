@@ -177,7 +177,7 @@ kyc-kyb/
 ├── demo-ats.sh                           # Script interativo de demonstração ponta a ponta
 ├── docker-compose.yml                    # Stack completa (PostgreSQL + API)
 ├── Dockerfile                            # Build otimizado em múltiplos estágios (.NET 10)
-├── MiniKycKyb.sln                        # Solução Visual Studio / .NET 10
+├── MiniKycKyb.slnx                       # Solução Visual Studio / .NET 10 (formato XML moderno)
 └── coverlet.runsettings                  # Configurações de cobertura de testes
 ```
 

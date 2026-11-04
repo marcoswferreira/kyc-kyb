@@ -2,7 +2,7 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0-noble AS build
 WORKDIR /src
 
 COPY Directory.Build.props ./
-COPY MiniKycKyb.sln ./
+COPY MiniKycKyb.slnx ./
 COPY src/Domain/Domain.csproj src/Domain/
 COPY src/Application/Application.csproj src/Application/
 COPY src/Infrastructure/Infrastructure.csproj src/Infrastructure/
