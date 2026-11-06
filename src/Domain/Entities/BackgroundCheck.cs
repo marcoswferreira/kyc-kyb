@@ -1,5 +1,7 @@
 using Domain.Common;
 using Domain.Enums;
+using Domain.Events;
+using Domain.StateMachine;
 
 namespace Domain.Entities;
 
@@ -16,6 +18,7 @@ public sealed class BackgroundCheck : BaseEntity, IAggregateRoot
     public bool ConsentObtained { get; private set; }
     public DateTime? ConsentTimestamp { get; private set; }
     public CheckStatus Status { get; private set; } = CheckStatus.Pending;
+    public CheckState State { get; private set; } = CheckState.Pending;
     public RiskIndicator OverallRisk { get; private set; } = RiskIndicator.Green;
     
     // LGPD Art. 20: Decisão Assistida (Human-in-the-Loop)
@@ -37,6 +40,9 @@ public sealed class BackgroundCheck : BaseEntity, IAggregateRoot
 
     private readonly List<CheckFinding> _findings = [];
     public IReadOnlyCollection<CheckFinding> Findings => _findings.AsReadOnly();
+
+    private CheckStateMachine? _stateMachine;
+    private CheckStateMachine StateMachine => _stateMachine ??= new CheckStateMachine(State == 0 ? CheckState.Pending : State);
 
     private BackgroundCheck() { } // EF Core
 
@@ -66,11 +72,21 @@ public sealed class BackgroundCheck : BaseEntity, IAggregateRoot
         ConsentObtained = consentObtained;
         ConsentTimestamp = consentTimestamp ?? (consentObtained ? DateTime.UtcNow : null);
         Status = CheckStatus.Pending;
+        State = CheckState.Pending;
         OverallRisk = RiskIndicator.Green;
         HumanReviewStatus = HumanReviewDecision.AwaitingReview;
         CreatedAt = DateTime.UtcNow;
         RetentionUntil = DateTime.UtcNow.AddDays(retentionDays);
         IsPurged = false;
+
+        AddDomainEvent(new CheckCreatedEvent(
+            Guid.NewGuid(),
+            CreatedAt,
+            Id,
+            TenantId,
+            DocumentMasked,
+            SubjectType,
+            Purpose));
     }
 
     public static BackgroundCheck Create(
@@ -103,13 +119,17 @@ public sealed class BackgroundCheck : BaseEntity, IAggregateRoot
 
     public void StartProcessing()
     {
-        if (Status != CheckStatus.Pending)
+        if (State != CheckState.Pending)
         {
             return;
         }
 
+        StateMachine.TransitionTo(CheckState.Processing);
+        State = StateMachine.CurrentState;
         Status = CheckStatus.Processing;
         SetUpdatedAt(DateTime.UtcNow);
+
+        AddDomainEvent(new CheckProcessingStartedEvent(Guid.NewGuid(), DateTime.UtcNow, Id, TenantId));
     }
 
     public void Complete(
@@ -120,6 +140,8 @@ public sealed class BackgroundCheck : BaseEntity, IAggregateRoot
         bool hasPartialWarnings = false,
         string? aiSummary = null)
     {
+        StateMachine.TransitionTo(CheckState.AwaitingHumanReview);
+        State = StateMachine.CurrentState;
         OverallRisk = overallRisk;
         _findings.Clear();
         _findings.AddRange(findings);
@@ -129,10 +151,21 @@ public sealed class BackgroundCheck : BaseEntity, IAggregateRoot
         Status = hasPartialWarnings ? CheckStatus.CompletedWithWarnings : CheckStatus.Completed;
         CompletedAt = DateTime.UtcNow;
         SetUpdatedAt(DateTime.UtcNow);
+
+        AddDomainEvent(new CheckCompletedAwaitingReviewEvent(
+            Guid.NewGuid(),
+            DateTime.UtcNow,
+            Id,
+            TenantId,
+            overallRisk,
+            _findings.Count,
+            evidenceSha256));
     }
 
     public void MarkAsFailed(string reason)
     {
+        StateMachine.TransitionTo(CheckState.Failed);
+        State = StateMachine.CurrentState;
         Status = CheckStatus.Failed;
         CompletedAt = DateTime.UtcNow;
         SetUpdatedAt(DateTime.UtcNow);
@@ -159,11 +192,31 @@ public sealed class BackgroundCheck : BaseEntity, IAggregateRoot
             return Result.Failure("A fundamentação/justificativa da revisão humana é obrigatória sob a LGPD.", "LGPD_JUSTIFICATION_REQUIRED");
         }
 
+        var targetState = decision switch
+        {
+            HumanReviewDecision.ApprovedByHuman => CheckState.Approved,
+            HumanReviewDecision.RejectedByHuman => CheckState.Rejected,
+            HumanReviewDecision.AdditionalInformationRequested => CheckState.RequiresMoreInfo,
+            _ => CheckState.AwaitingHumanReview
+        };
+
+        StateMachine.TransitionTo(targetState);
+        State = StateMachine.CurrentState;
+
         HumanReviewStatus = decision;
         HumanReviewerId = reviewerId;
         HumanReviewNotes = notes;
         HumanReviewedAt = DateTime.UtcNow;
         SetUpdatedAt(DateTime.UtcNow);
+
+        AddDomainEvent(new HumanReviewDeliberatedEvent(
+            Guid.NewGuid(),
+            DateTime.UtcNow,
+            Id,
+            TenantId,
+            reviewerId,
+            decision,
+            notes));
 
         return Result.Success();
     }
@@ -178,6 +231,9 @@ public sealed class BackgroundCheck : BaseEntity, IAggregateRoot
             return;
         }
 
+        StateMachine.TransitionTo(CheckState.Purged);
+        State = StateMachine.CurrentState;
+
         Name = "[EXPURGADO_LGPD]";
         DocumentNumber = "[EXPURGADO]";
         DocumentFormatted = "[EXPURGADO]";
@@ -186,6 +242,12 @@ public sealed class BackgroundCheck : BaseEntity, IAggregateRoot
         IsPurged = true;
         PurgedAt = DateTime.UtcNow;
         SetUpdatedAt(DateTime.UtcNow);
+
+        AddDomainEvent(new DataRetentionPurgedEvent(
+            Guid.NewGuid(),
+            DateTime.UtcNow,
+            Id,
+            TenantId,
+            PurgedAt.Value));
     }
 }
-

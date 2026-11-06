@@ -10,13 +10,13 @@ public sealed class CheckStateMachine
 {
     private static readonly Dictionary<CheckState, HashSet<CheckState>> AllowedTransitions = new()
     {
-        [CheckState.Pending] = [CheckState.Processing, CheckState.Failed, CheckState.Purged],
+        [CheckState.Pending] = [CheckState.Processing, CheckState.AwaitingHumanReview, CheckState.Approved, CheckState.Rejected, CheckState.Failed, CheckState.Purged],
         [CheckState.Processing] = [CheckState.AwaitingHumanReview, CheckState.Failed, CheckState.Purged],
         [CheckState.AwaitingHumanReview] = [CheckState.Approved, CheckState.Rejected, CheckState.RequiresMoreInfo, CheckState.Purged],
         [CheckState.RequiresMoreInfo] = [CheckState.Processing, CheckState.Approved, CheckState.Rejected, CheckState.Purged],
         [CheckState.Approved] = [CheckState.Purged],
         [CheckState.Rejected] = [CheckState.Purged],
-        [CheckState.Failed] = [CheckState.Pending, CheckState.Purged],
+        [CheckState.Failed] = [CheckState.Pending, CheckState.Processing, CheckState.Purged],
         [CheckState.Purged] = [] // Estado terminal imutável
     };
 
@@ -49,4 +49,3 @@ public sealed class CheckStateMachine
             : Array.Empty<CheckState>();
     }
 }
-

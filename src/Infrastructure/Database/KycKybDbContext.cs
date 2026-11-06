@@ -20,6 +20,8 @@ public class KycKybDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
+        modelBuilder.Ignore<Domain.Events.IDomainEvent>();
+
         modelBuilder.Entity<Tenant>(builder =>
         {
             builder.ToTable("tenants");
@@ -36,6 +38,9 @@ public class KycKybDbContext : DbContext
         {
             builder.ToTable("background_checks");
             builder.HasKey(b => b.Id);
+            builder.Ignore(b => b.DomainEvents);
+            builder.Property(b => b.State).HasConversion<int>();
+            builder.HasIndex(b => b.State);
             builder.HasIndex(b => new { b.TenantId, b.DocumentNumber });
             builder.HasIndex(b => b.Status);
             builder.HasIndex(b => b.RetentionUntil);

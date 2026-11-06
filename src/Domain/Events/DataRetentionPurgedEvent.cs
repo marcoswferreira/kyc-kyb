@@ -2,7 +2,7 @@ namespace Domain.Events;
 
 public sealed record DataRetentionPurgedEvent(
     Guid EventId,
+    DateTime OccurredOn,
     Guid CheckId,
     Guid TenantId,
-    DateTime PurgedAt,
-    DateTime OccurredAt) : IDomainEvent;
+    DateTime PurgedAt) : IDomainEvent;
