@@ -33,11 +33,14 @@ public static class InfrastructureExtensions
 {
     public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
     {
-        var dbProvider = configuration["Database:Provider"] ?? "InMemory";
+        var dbProvider = configuration["Database:Provider"];
         var connectionString = configuration.GetConnectionString("DefaultConnection")
                                ?? configuration["ConnectionStrings:DefaultConnection"];
 
-        if (string.Equals(dbProvider, "PostgreSql", StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(connectionString))
+        bool usePostgres = string.Equals(dbProvider, "PostgreSql", StringComparison.OrdinalIgnoreCase)
+                           || (!string.IsNullOrWhiteSpace(connectionString) && connectionString.Contains("Host=", StringComparison.OrdinalIgnoreCase));
+
+        if (usePostgres && !string.IsNullOrWhiteSpace(connectionString))
         {
             services.AddDbContext<KycKybDbContext>(options =>
                 options.UseNpgsql(connectionString, b => b.MigrationsAssembly(typeof(KycKybDbContext).Assembly.FullName)));
@@ -137,8 +140,8 @@ public static class InfrastructureExtensions
         {
             if (context.Database.IsRelational())
             {
-                logger.LogInformation("Aplicando migrações relacionais (PostgreSQL)...");
-                await context.Database.MigrateAsync();
+                logger.LogInformation("Validando e criando esquema relacional (PostgreSQL)...");
+                await context.Database.EnsureCreatedAsync();
             }
             else
             {
