@@ -19,10 +19,14 @@ app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseMiddleware<ApiKeyAuthMiddleware>();
 app.UseMiddleware<RateLimitingMiddleware>();
 
-if (app.Environment.IsDevelopment())
+app.MapOpenApi();
+app.UseSwaggerUI(options =>
 {
-    app.MapOpenApi();
-}
+    options.SwaggerEndpoint("/openapi/v1.json", "MiniKycKyb API v1");
+    options.RoutePrefix = "swagger";
+});
+
+app.MapGet("/", () => Results.Redirect("/swagger"));
 
 app.MapControllers();
 

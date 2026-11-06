@@ -23,7 +23,9 @@ public class ApiKeyAuthMiddleware
         var path = context.Request.Path.Value ?? string.Empty;
 
         // Endpoints públicos ou de documentação
-        if (path.StartsWith("/openapi", StringComparison.OrdinalIgnoreCase) ||
+        if (path == "/" ||
+            path.StartsWith("/swagger", StringComparison.OrdinalIgnoreCase) ||
+            path.StartsWith("/openapi", StringComparison.OrdinalIgnoreCase) ||
             path.StartsWith("/health", StringComparison.OrdinalIgnoreCase) ||
             path.Contains("/ats/callback", StringComparison.OrdinalIgnoreCase) ||
             path.Contains("/ats/received-callbacks", StringComparison.OrdinalIgnoreCase) ||
