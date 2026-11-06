@@ -32,6 +32,7 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: "http://+:8080;http://+:5000"
+      Database__Provider: "PostgreSql"
       ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=kyc_kyb_db;Username=kyc_admin;Password=kyc_secret_password"
       GEMINI_API_KEY: "${GEMINI_API_KEY:-}"
 

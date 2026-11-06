@@ -37,8 +37,10 @@ public static class InfrastructureExtensions
         var connectionString = configuration.GetConnectionString("DefaultConnection")
                                ?? configuration["ConnectionStrings:DefaultConnection"];
 
-        bool usePostgres = string.Equals(dbProvider, "PostgreSql", StringComparison.OrdinalIgnoreCase)
-                           || (!string.IsNullOrWhiteSpace(connectionString) && connectionString.Contains("Host=", StringComparison.OrdinalIgnoreCase));
+        bool isExplicitInMemory = string.Equals(dbProvider, "InMemory", StringComparison.OrdinalIgnoreCase);
+        bool usePostgres = !isExplicitInMemory && (
+            string.Equals(dbProvider, "PostgreSql", StringComparison.OrdinalIgnoreCase)
+            || (!string.IsNullOrWhiteSpace(connectionString) && connectionString.Contains("Host=", StringComparison.OrdinalIgnoreCase)));
 
         if (usePostgres && !string.IsNullOrWhiteSpace(connectionString))
         {
