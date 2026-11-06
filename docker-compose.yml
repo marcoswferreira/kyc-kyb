@@ -27,9 +27,11 @@ services:
       postgres:
         condition: service_healthy
     ports:
-      - "5000:8080"
+      - "5000:5000"
+      - "8080:8080"
     environment:
       ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: "http://+:8080;http://+:5000"
       ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=kyc_kyb_db;Username=kyc_admin;Password=kyc_secret_password"
       GEMINI_API_KEY: "${GEMINI_API_KEY:-}"
 

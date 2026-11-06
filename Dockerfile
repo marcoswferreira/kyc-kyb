@@ -17,6 +17,7 @@ RUN dotnet publish -c Release -o /app/publish /p:UseAppHost=false
 FROM mcr.microsoft.com/dotnet/aspnet:10.0-noble AS final
 WORKDIR /app
 EXPOSE 8080
+EXPOSE 5000
 COPY --from=build /app/publish .
 ENTRYPOINT ["dotnet", "MiniKycKyb.API.dll"]
 

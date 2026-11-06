@@ -48,6 +48,36 @@ public class TenantsController : ControllerBase
     }
 
     /// <summary>
+    /// Consulta os dados cadastrais do tenant autenticado pela chave de API.
+    /// </summary>
+    [HttpGet("me")]
+    public async Task<IActionResult> GetCurrentTenant([FromServices] ITenantRepository tenantRepository, CancellationToken cancellationToken)
+    {
+        var tenantId = _currentTenant.TenantId ?? Guid.Empty;
+        if (tenantId == Guid.Empty)
+        {
+            return Unauthorized(new { error = "Tenant não autenticado." });
+        }
+
+        var tenant = await tenantRepository.GetByIdAsync(tenantId, cancellationToken);
+        if (tenant is null)
+        {
+            return NotFound(new { error = "Tenant não encontrado." });
+        }
+
+        return Ok(new
+        {
+            id = tenant.Id,
+            name = tenant.Name,
+            slug = tenant.Slug,
+            api_key_prefix = tenant.ApiKeyPrefix,
+            rate_limit_per_minute = tenant.RateLimitPerMinute,
+            is_active = tenant.IsActive,
+            created_at = tenant.CreatedAt
+        });
+    }
+
+    /// <summary>
     /// Rotaciona ou gera uma nova chave de API para o tenant.
     /// </summary>
     [HttpPost("{id:guid}/api-keys")]
