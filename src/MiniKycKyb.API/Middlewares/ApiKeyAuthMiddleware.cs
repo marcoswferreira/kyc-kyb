@@ -27,6 +27,7 @@ public class ApiKeyAuthMiddleware
             path.StartsWith("/swagger", StringComparison.OrdinalIgnoreCase) ||
             path.StartsWith("/openapi", StringComparison.OrdinalIgnoreCase) ||
             path.StartsWith("/health", StringComparison.OrdinalIgnoreCase) ||
+            path.StartsWith("/api/v1/webhooks/providers", StringComparison.OrdinalIgnoreCase) ||
             path.Contains("/ats/callback", StringComparison.OrdinalIgnoreCase) ||
             path.Contains("/ats/received-callbacks", StringComparison.OrdinalIgnoreCase) ||
             (path.Equals("/api/v1/tenants", StringComparison.OrdinalIgnoreCase) && context.Request.Method.Equals("POST", StringComparison.OrdinalIgnoreCase)))

@@ -59,7 +59,9 @@ public class KycKybDbContext : DbContext
             builder.Property(b => b.DocumentFormatted).HasMaxLength(50).IsRequired();
             builder.Property(b => b.DocumentMasked).HasMaxLength(50).IsRequired();
             builder.Property(b => b.Name).HasMaxLength(500).IsRequired().HasConversion(rndConverter);
-            builder.Property(b => b.RawEvidenceJson).HasConversion(rndConverter);
+            builder.Property(b => b.RawEvidenceJson).HasConversion(
+                x => x == null ? null : _encryptionService.Encrypt(x),
+                x => x == null ? null : _encryptionService.Decrypt(x));
             builder.Property(b => b.EvidenceSha256).HasMaxLength(64);
             builder.HasMany(b => b.Findings)
                    .WithOne()

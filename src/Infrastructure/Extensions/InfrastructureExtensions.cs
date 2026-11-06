@@ -8,11 +8,13 @@ using Application.UseCases.MeteringAndAudit;
 using Application.UseCases.Tenants;
 using Domain.Repositories;
 using Infrastructure.Acl.Adapters;
+using Infrastructure.Audit;
 using Infrastructure.BackgroundWorkers;
 using Infrastructure.Database;
 using Infrastructure.Database.Repositories;
 using Infrastructure.Database.Seeders;
 using Infrastructure.Logging;
+using Infrastructure.Messaging;
 using Infrastructure.Orchestration;
 using Infrastructure.Providers;
 using Infrastructure.Resilience;
@@ -46,14 +48,16 @@ public static class InfrastructureExtensions
                 options.UseInMemoryDatabase("MiniKycKybDb"));
         }
 
-        // Repositories
+        // Repositories & Audit Dispatcher
         services.AddScoped<IBackgroundCheckRepository, BackgroundCheckRepository>();
         services.AddScoped<ITenantRepository, TenantRepository>();
         services.AddScoped<IAuditLogRepository, AuditLogRepository>();
+        services.AddScoped<IDomainEventDispatcher, DomainEventDispatcher>();
         services.AddScoped<IWebhookSubscriptionRepository, WebhookSubscriptionRepository>();
         services.AddScoped<IUsageMetricRepository, UsageMetricRepository>();
 
-        // Resilience & Cache
+        // Resilience, Messaging & Cache
+        services.AddSingleton<IMessageBus, ChannelMessageBus>();
         services.AddSingleton<ICircuitBreaker>(_ => new CircuitBreaker(failureThreshold: 3, openDuration: TimeSpan.FromSeconds(5)));
         services.AddSingleton<ICheckCache, MemoryCheckCache>();
 
