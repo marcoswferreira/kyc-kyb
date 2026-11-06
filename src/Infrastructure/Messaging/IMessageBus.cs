@@ -9,3 +9,4 @@ public interface IMessageBus
     ValueTask PublishAsync<T>(string topic, T message, CancellationToken cancellationToken = default);
     IAsyncEnumerable<T> SubscribeAsync<T>(string topic, CancellationToken cancellationToken = default);
 }
+

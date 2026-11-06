@@ -9,3 +9,4 @@ internal sealed class StoredAttachmentItem
     public required DateTime UploadedAt { get; init; }
     public required DateTime ExpiresAt { get; init; }
 }
+

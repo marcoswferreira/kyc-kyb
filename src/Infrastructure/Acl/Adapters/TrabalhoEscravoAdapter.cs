@@ -81,3 +81,4 @@ public sealed class TrabalhoEscravoAdapter : IProviderAdapter<IReadOnlyList<Cano
         }
     }
 }
+

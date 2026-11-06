@@ -15,3 +15,4 @@ public sealed record CanonicalJudicialRecord(
     string Nature,
     string Description,
     DateTime? DistributionDate);
+

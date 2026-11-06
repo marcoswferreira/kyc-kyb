@@ -85,3 +85,4 @@ public sealed class QsaSociosAdapter : IProviderAdapter<IReadOnlyList<CanonicalP
         }
     }
 }
+

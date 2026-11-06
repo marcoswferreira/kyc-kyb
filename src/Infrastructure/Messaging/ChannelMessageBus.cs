@@ -52,3 +52,4 @@ public sealed class ChannelMessageBus : IMessageBus
         }
     }
 }
+

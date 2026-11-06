@@ -11,3 +11,4 @@ public sealed record ProviderAdapterResult<T>(
     string? RawJson,
     string? ErrorMessage,
     int LatencyMs);
+

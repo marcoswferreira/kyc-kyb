@@ -15,3 +15,4 @@ public interface IProviderAdapter<TCanonical>
         SubjectType subjectType,
         CancellationToken cancellationToken = default);
 }
+

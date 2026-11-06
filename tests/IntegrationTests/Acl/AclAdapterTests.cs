@@ -109,3 +109,4 @@ public class AclAdapterTests
         result.Data.Should().Contain(p => p.Qualification == "Sócio-Administrador" && p.SharePercentage == 60.0m);
     }
 }
+

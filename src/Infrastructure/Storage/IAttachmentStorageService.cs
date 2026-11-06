@@ -23,3 +23,4 @@ public interface IAttachmentStorageService
 
     string GeneratePresignedUrl(string storageKey, TimeSpan validity);
 }
+

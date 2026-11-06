@@ -90,3 +90,4 @@ public sealed class TribunaisAdapter : IProviderAdapter<IReadOnlyList<CanonicalJ
         }
     }
 }
+

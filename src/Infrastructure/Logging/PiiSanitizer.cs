@@ -62,3 +62,4 @@ public sealed class PiiSanitizer : IPiiSanitizer
         return sanitized;
     }
 }
+

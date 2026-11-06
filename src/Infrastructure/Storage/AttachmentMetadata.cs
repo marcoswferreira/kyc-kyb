@@ -11,3 +11,4 @@ public sealed record AttachmentMetadata(
     DateTime UploadedAt,
     DateTime ExpiresAt,
     bool IsExpired);
+

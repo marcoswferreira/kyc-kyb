@@ -84,3 +84,4 @@ public sealed class ReceitaFederalAdapter : IProviderAdapter<CanonicalCadastralP
         }
     }
 }
+

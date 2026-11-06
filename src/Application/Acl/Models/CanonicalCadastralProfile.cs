@@ -14,3 +14,4 @@ public sealed record CanonicalCadastralProfile(
     DateTime? RegistrationDate,
     string? LegalNature,
     bool IsActive);
+

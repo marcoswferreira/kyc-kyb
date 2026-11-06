@@ -14,3 +14,4 @@ public sealed record ProviderWebhookPayload(
     JsonElement Data,
     string? Signature,
     DateTime Timestamp);
+

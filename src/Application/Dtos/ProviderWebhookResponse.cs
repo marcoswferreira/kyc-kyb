@@ -8,3 +8,4 @@ public sealed record ProviderWebhookResponse(
     string Message,
     string IngestionReceiptId,
     DateTime ProcessedAt);
+

@@ -14,3 +14,4 @@ public sealed record CanonicalSanctionRecord(
     string Reason,
     DateTime? InscriptionDate,
     string? PublishingAgency);
+

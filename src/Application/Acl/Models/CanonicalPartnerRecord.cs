@@ -11,3 +11,4 @@ public sealed record CanonicalPartnerRecord(
     string LegalRepresentativeName,
     string LegalRepresentativeDocumentMasked,
     DateTime? EntryDate);
+

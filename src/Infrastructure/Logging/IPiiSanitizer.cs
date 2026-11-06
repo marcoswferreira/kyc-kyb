@@ -8,3 +8,4 @@ public interface IPiiSanitizer
 {
     string Sanitize(string? rawMessage);
 }
+

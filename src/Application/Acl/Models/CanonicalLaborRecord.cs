@@ -10,3 +10,4 @@ public sealed record CanonicalLaborRecord(
     int RescuedWorkersCount,
     int InclusionYear,
     string InspectionDecision);
+

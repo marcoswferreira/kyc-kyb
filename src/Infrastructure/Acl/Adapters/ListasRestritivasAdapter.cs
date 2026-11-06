@@ -106,3 +106,4 @@ public sealed class ListasRestritivasAdapter : IProviderAdapter<IReadOnlyList<Ca
         }
     }
 }
+
