@@ -1,3 +1,5 @@
+using Application.Acl;
+using Application.Acl.Models;
 using Application.AI;
 using Application.Interfaces;
 using Application.Rules;
@@ -5,6 +7,7 @@ using Application.UseCases.Checks;
 using Application.UseCases.MeteringAndAudit;
 using Application.UseCases.Tenants;
 using Domain.Repositories;
+using Infrastructure.Acl.Adapters;
 using Infrastructure.BackgroundWorkers;
 using Infrastructure.Database;
 using Infrastructure.Database.Repositories;
@@ -58,6 +61,13 @@ public static class InfrastructureExtensions
         services.AddSingleton<IBackgroundCheckProvider, ListasRestritivasMockProvider>();
         services.AddSingleton<IBackgroundCheckProvider, TrabalhoEscravoMockProvider>();
         services.AddSingleton<IBackgroundCheckProvider, QsaSociosMockProvider>();
+
+        // Camada Anticorrupção (ACL) - Adapters Canônicos
+        services.AddTransient<IProviderAdapter<CanonicalCadastralProfile>, ReceitaFederalAdapter>();
+        services.AddTransient<IProviderAdapter<IReadOnlyList<CanonicalJudicialRecord>>, TribunaisAdapter>();
+        services.AddTransient<IProviderAdapter<IReadOnlyList<CanonicalSanctionRecord>>, ListasRestritivasAdapter>();
+        services.AddTransient<IProviderAdapter<IReadOnlyList<CanonicalLaborRecord>>, TrabalhoEscravoAdapter>();
+        services.AddTransient<IProviderAdapter<IReadOnlyList<CanonicalPartnerRecord>>, QsaSociosAdapter>();
 
         // Engine de Regras e Orquestrador
         services.AddSingleton<IRiskPolicyEngine, RiskPolicyEngine>();
