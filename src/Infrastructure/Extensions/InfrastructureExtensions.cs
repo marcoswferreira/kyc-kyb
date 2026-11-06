@@ -12,10 +12,12 @@ using Infrastructure.BackgroundWorkers;
 using Infrastructure.Database;
 using Infrastructure.Database.Repositories;
 using Infrastructure.Database.Seeders;
+using Infrastructure.Logging;
 using Infrastructure.Orchestration;
 using Infrastructure.Providers;
 using Infrastructure.Resilience;
 using Infrastructure.Security;
+using Infrastructure.Storage;
 using Infrastructure.Webhooks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -73,7 +75,10 @@ public static class InfrastructureExtensions
         services.AddSingleton<IRiskPolicyEngine, RiskPolicyEngine>();
         services.AddScoped<ICheckOrchestrator, CheckOrchestrator>();
 
-        // Security, Context & Masking
+        // Security, Context, Encryption & Masking
+        services.AddSingleton<IAesEncryptionService, AesEncryptionService>();
+        services.AddSingleton<IPiiSanitizer, PiiSanitizer>();
+        services.AddSingleton<IAttachmentStorageService, InMemoryAttachmentStorageService>();
         services.AddSingleton<IDataMasker, DataMasker>();
         services.AddScoped<CurrentTenantContext>();
         services.AddScoped<ICurrentTenantContext>(sp => sp.GetRequiredService<CurrentTenantContext>());

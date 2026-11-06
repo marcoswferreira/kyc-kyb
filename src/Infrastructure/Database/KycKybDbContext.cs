@@ -1,10 +1,15 @@
 using Domain.Entities;
+using Infrastructure.Database.Converters;
+using Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace Infrastructure.Database;
 
 public class KycKybDbContext : DbContext
 {
+    private readonly IAesEncryptionService _encryptionService;
+
     public DbSet<Tenant> Tenants => Set<Tenant>();
     public DbSet<BackgroundCheck> BackgroundChecks => Set<BackgroundCheck>();
     public DbSet<CheckFinding> CheckFindings => Set<CheckFinding>();
@@ -12,13 +17,19 @@ public class KycKybDbContext : DbContext
     public DbSet<WebhookSubscription> WebhookSubscriptions => Set<WebhookSubscription>();
     public DbSet<UsageMetric> UsageMetrics => Set<UsageMetric>();
 
-    public KycKybDbContext(DbContextOptions<KycKybDbContext> options) : base(options)
+    public KycKybDbContext(
+        DbContextOptions<KycKybDbContext> options,
+        IAesEncryptionService? encryptionService = null) : base(options)
     {
+        _encryptionService = encryptionService ?? new AesEncryptionService(new ConfigurationBuilder().Build());
     }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        var detConverter = new EncryptedStringConverter(_encryptionService, deterministic: true);
+        var rndConverter = new EncryptedStringConverter(_encryptionService, deterministic: false);
 
         modelBuilder.Ignore<Domain.Events.IDomainEvent>();
 
@@ -44,10 +55,11 @@ public class KycKybDbContext : DbContext
             builder.HasIndex(b => new { b.TenantId, b.DocumentNumber });
             builder.HasIndex(b => b.Status);
             builder.HasIndex(b => b.RetentionUntil);
-            builder.Property(b => b.DocumentNumber).HasMaxLength(50).IsRequired();
+            builder.Property(b => b.DocumentNumber).HasMaxLength(500).IsRequired().HasConversion(detConverter);
             builder.Property(b => b.DocumentFormatted).HasMaxLength(50).IsRequired();
             builder.Property(b => b.DocumentMasked).HasMaxLength(50).IsRequired();
-            builder.Property(b => b.Name).HasMaxLength(200).IsRequired();
+            builder.Property(b => b.Name).HasMaxLength(500).IsRequired().HasConversion(rndConverter);
+            builder.Property(b => b.RawEvidenceJson).HasConversion(rndConverter);
             builder.Property(b => b.EvidenceSha256).HasMaxLength(64);
             builder.HasMany(b => b.Findings)
                    .WithOne()
