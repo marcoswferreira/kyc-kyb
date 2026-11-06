@@ -13,7 +13,7 @@ A forma recomendada de execução completa com banco de dados PostgreSQL é atra
 docker compose up -d --build
 
 # Acompanhar os logs da aplicação em tempo real
-docker compose logs -f api
+docker compose logs -f kyc-kyb-api
 
 # Parar a aplicação e os contêineres
 docker compose down
@@ -21,8 +21,8 @@ docker compose down
 
 ### Arquitetura de Contêineres
 
-- **`postgres`**: Imagem oficial `postgres:16-alpine`, expondo a porta `5432`. Os dados persistem no volume Docker `postgres_data`.
-- **`api`**: Contêiner otimizado multi-stage baseado em `mcr.microsoft.com/dotnet/aspnet:10.0`, expondo a porta `8080`.
+- **`kyc-kyb-postgres`**: Imagem oficial `postgres:17-alpine`, expondo a porta `5432`. Usuário padrão `kyc_admin`, banco `kyc_kyb_db`. Os dados persistem no volume Docker `postgres_data`.
+- **`kyc-kyb-api`**: Contêiner otimizado multi-stage baseado em `mcr.microsoft.com/dotnet/aspnet:10.0`, expondo as portas **`5000:5000`** e **`8080:8080`**.
 
 ---
 
@@ -32,77 +32,55 @@ A plataforma conta com fallback automático para banco de dados em memória. Se 
 
 ```bash
 # Restaurar dependências
-dotnet restore
+XDG_RUNTIME_DIR=/tmp dotnet restore MiniKycKyb.slnx
 
 # Compilar a solução
-dotnet build --configuration Release
+XDG_RUNTIME_DIR=/tmp dotnet build MiniKycKyb.slnx --configuration Release
+
+# Executar a suíte de testes com barreira de cobertura (>80%)
+bash .agents/skills/kyc-kyb-standards/scripts/run-coverage.sh
 
 # Executar a API localmente
 dotnet run --project src/MiniKycKyb.API
 ```
 
-A API inicializará em `http://localhost:5000` (ou porta configurada em `launchSettings.json`).
+A API inicializará em **`http://localhost:5000`** e **`http://localhost:8080`**.
 
 ---
 
 ## ⚙️ Variáveis de Ambiente e Configuração
 
-As configurações podem ser injetadas via variáveis de ambiente do sistema operacional ou no arquivo `appsettings.json`:
+As configurações podem ser injetadas via variáveis de ambiente do sistema operacional, Docker Compose ou no arquivo `appsettings.json`:
 
 | Variável de Ambiente | Descrição | Valor Padrão / Exemplo |
 | --- | --- | --- |
-| `ConnectionStrings__DefaultConnection` | String de conexão para o PostgreSQL | `Host=localhost;Port=5432;Database=kyckyb_db;Username=postgres;Password=postgres` |
+| `ConnectionStrings__DefaultConnection` | String de conexão para o PostgreSQL | `Host=postgres;Port=5432;Database=kyc_kyb_db;Username=kyc_admin;Password=kyc_secret_password` |
+| `Database__Provider` | Provedor de banco (`PostgreSql` ou `InMemory`) | `PostgreSql` |
+| `Security__EncryptionKey` | Chave de 256 bits (64 hex chars) para AES-256-GCM | Opcional (possui chave padrão segura) |
 | `GEMINI_API_KEY` | Chave de API do Google Gemini (se ausente, ativa o modo heurístico) | `AIzaSy...` |
 | `ASPNETCORE_ENVIRONMENT` | Ambiente de execução | `Development` ou `Production` |
-| `ASPNETCORE_URLS` | Portas e protocolos de escuta HTTP | `http://+:8080` |
+| `ASPNETCORE_URLS` | Portas e protocolos de escuta HTTP | `http://+:8080;http://+:5000` |
 
 ---
 
-## 🗄️ Inicialização e Migrações de Banco de Dados
+## 🔍 Verificação de Saúde e Diagnóstico Operacional
 
-Ao iniciar a aplicação, a rotina `DatabaseMigrator.MigrateDatabaseAsync()`:
+### 1. Teste de Acesso ao Swagger UI
+Navegue no navegador ou via curl:
+```bash
+curl -I http://localhost:5000/swagger
+# Retorna 301 para swagger/index.html e HTTP 200 OK
+```
 
-1. Aplica automaticamente quaisquer migrações pendentes no PostgreSQL (`context.Database.MigrateAsync()`).
-2. Executa o `DatabaseSeeder`, garantindo a existência do Tenant Mestre e gerando o bloco gênese da trilha imutável de auditoria.
+### 2. Validação da Criptografia em Repouso no PostgreSQL
+Inspecione diretamente no banco se os CPFs e dados pessoais estão salvos cifrados:
+```bash
+docker compose exec -T postgres psql -U kyc_admin -d kyc_kyb_db -c 'SELECT "Id", "DocumentNumber", "Name" FROM background_checks LIMIT 3;'
+```
+*(As colunas devem iniciar com prefixo `enc:det:...` e `enc:rnd:...`)*.
 
-### Credenciais Iniciais Criadas Automaticamente
-
-- **Tenant ID Padrão**: `11111111-1111-1111-1111-111111111111`
-- **Master API Key**: `sk_live_master_kyc_default_key_12345`
-- **Webhook Secret Padrão**: `whsec_default_master_secret_key_8899`
-
----
-
-## 🔄 Pipeline de Integração Contínua (CI/CD com GitHub Actions)
-
-O repositório conta com um pipeline automatizado de alta confiabilidade definido em `.github/workflows/ci.yml`:
-
-1. **Gate de Single Type per File**: Validação estrita via AST garantindo que nenhum arquivo `.cs` contenha mais de um tipo (classe, interface, enum, struct ou record).
-2. **Build Release (.NET 10)**: Compilação de toda a solução em modo `Release` com tratamento rigoroso de warnings.
-3. **Execução de Testes e Gate de Cobertura (>80%)**: Execução dos 102 testes unitários e de integração com Coverlet, falhando o pipeline caso a cobertura de linhas fique abaixo de 80%.
-4. **Publicação de Relatórios de Cobertura**: Armazenamento automático dos relatórios de cobertura Cobertura XML como artefatos da action.
-5. **Build Docker e Smoke Test**: Construção da imagem Docker multi-stage e teste de fumaça executando requisições contra o contêiner em execução.
-
----
-
-## 🔧 Diagnóstico e Resolução de Problemas (Troubleshooting)
-
-### 1. Erro HTTP 401 Unauthorized
-
-- **Causa**: O cabeçalho `X-Api-Key` está ausente ou a chave fornecida não corresponde ao hash SHA-256 de nenhum Tenant cadastrado.
-- **Solução**: Verifique se enviou `X-Api-Key: sk_live_master_kyc_default_key_12345` na requisição.
-
-### 2. Erro HTTP 429 Too Many Requests
-
-- **Causa**: O inquilino excedeu a capacidade do Token Bucket (120 requisições/minuto).
-- **Solução**: Aguarde os segundos indicados no cabeçalho `Retry-After: 60` ou ajuste o consumo de chamadas no cliente.
-
-### 3. Falha de Validação na Assinatura do Webhook (HMAC-SHA256)
-
-- **Causa**: O segredo compartilhado no cliente receptor difere do `WebhookSecret` configurado para o Tenant, ou o corpo da requisição sofreu alteração de encoding.
-- **Solução**: Calcule o HMAC-SHA256 utilizando os bytes UTF-8 brutos do payload exatamente como recebidos na rede.
-
-### 4. Consultas Retornando `CompletedWithWarnings`
-
-- **Causa**: Um dos provedores governamentais simulados atingiu o timeout de 2 segundos ou disparou o Circuit Breaker.
-- **Diagnóstico**: Inspecione o array de `findings` retornado na consulta da checagem para identificar qual provedor indicou indisponibilidade. O sistema continuará operando normalmente para os demais provedores.
+### 3. Validação da Trilha de Auditoria Encadeada (Hash Chain)
+Verifique os elos criptográficos SHA-256:
+```bash
+docker compose exec -T postgres psql -U kyc_admin -d kyc_kyb_db -c 'SELECT "Action", "PreviousHash", "Hash" FROM audit_log_entries LIMIT 5;'
+```

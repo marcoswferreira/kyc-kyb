@@ -25,8 +25,10 @@ Cada tipo de requisição, resposta e modelo de dados está organizado segundo o
 | `POST` | `/api/v1/checks/{id}/review` | Registra a decisão humana formal (LGPD Art. 20) | `ReviewCheckRequest` | `ReviewCheckResponse` |
 | `POST` | `/api/v1/checks/purge-expired` | Executa o expurgo manual de dados retidos | - | `PurgeResult` |
 | `POST` | `/api/v1/tenants` | Cria um novo inquilino SaaS | `CreateTenantRequest` | `TenantResponse` + `ApiKeyResponse` |
+| `GET` | `/api/v1/tenants/me` | Obtém informações do inquilino autenticado | - | `TenantResponse` |
 | `POST` | `/api/v1/tenants/{id}/api-keys` | Rotaciona/gera uma chave de API para o inquilino | - | `ApiKeyResponse` |
 | `POST` | `/api/v1/tenants/webhooks` | Cadastra assinatura de webhook para notificações | `RegisterWebhookRequest` | `WebhookSubscription` |
+| `POST` | `/api/v1/webhooks/providers/{providerName}` | Ingestão assíncrona de webhooks de provedores (Idwall, Serasa, CAF, RFB) | `ProviderWebhookPayload` | `ProviderWebhookResponse` |
 | `GET` | `/api/v1/metering` | Consulta consumo e bilhetagem do inquilino | - | `UsageMetricResponse` |
 | `GET` | `/api/v1/audit` | Consulta a trilha imutável encadeada de auditoria | - | `AuditLogDto[]` |
 | `POST` | `/api/v1/ats/trigger-candidate-stage` | Simula transição de etapa no ATS integrado | `AtsTriggerRequest` | `AtsTriggerResponse` |
@@ -225,26 +227,50 @@ Retorna as métricas de faturamento e chamadas do tenant no período:
 
 ---
 
-### 6. Trilha Imutável de Auditoria (Hash Chain): `GET /api/v1/audit`
-Permite a auditores inspecionar a sequência imutável de eventos encadeados criptograficamente:
+### 7. Ingestão Assíncrona de Webhooks de Provedores: `POST /api/v1/webhooks/providers/{providerName}`
+Recebe retornos assíncronos de parceiros de background check (Idwall, Serasa, CAF, Receita Federal).
+- **Autenticação:** Pública (Bypass de `X-API-Key` no middleware; validação por assinatura no payload).
+- **Processamento:** Enfileirado no `ChannelMessageBus` sem bloqueio.
+
+**Exemplo de Payload:**
 ```json
 {
-  "total": 6,
-  "all_valid": true,
-  "logs": [
-    {
-      "id": "3578b3cf-...",
-      "tenantId": "11111111-1111-1111-1111-111111111111",
-      "actorId": "oficial.compliance@empresa.com",
-      "action": "HUMAN_REVIEW_RECORDED",
-      "resourceId": "fc812c34-4e66-4ad6-84e8-338e83dee2f0",
-      "details": "Revisão humana registrada: ApprovedByHuman. Justificativa: Candidato aprovado...",
-      "ipAddress": "127.0.0.1",
-      "timestamp": "2026-11-04T12:05:00Z",
-      "previousHash": "72704c8aaebd56062c87959a423013fd56006f7bf0164bf9ba0eabdc633f7ffb",
-      "hash": "45a91344b456a957dc2129633c48fff1cfee56cce1a0f62f2169a4acb65d8756",
-      "integrityValid": true
-    }
-  ]
+  "eventId": "evt_idwall_98765",
+  "providerName": "Idwall",
+  "checkReferenceId": "0094c220-2fba-4327-a7ad-a44bb03225a9",
+  "documentNumber": "52998224725",
+  "status": "APPROVED",
+  "data": { "protocol": "IDW-2026-999", "score": 920 },
+  "signature": "hmac_sha256_mock_valid_signature",
+  "timestamp": "2026-11-06T13:14:00Z"
 }
 ```
+
+**Resposta HTTP 202 Accepted:**
+```json
+{
+  "acknowledged": true,
+  "message": "Webhook do provedor idwall aceito e enfileirado com sucesso para processamento assíncrono.",
+  "ingestionReceiptId": "48edd9edb86a4a6a9bbdb49cf0261a49",
+  "processedAt": "2026-11-06T13:14:00.830Z"
+}
+```
+
+---
+
+### 8. Perfil do Inquilino Autenticado: `GET /api/v1/tenants/me`
+Retorna as configurações do inquilino associado à chave de API informada no header `X-API-Key` ou Bearer Token.
+
+**Resposta HTTP 200 OK:**
+```json
+{
+  "id": "11111111-1111-1111-1111-111111111111",
+  "name": "Master Compliance Corp (Default Tenant)",
+  "slug": "master-compliance",
+  "apiKeyPrefix": "sk_live_master_",
+  "rateLimitPerMinute": 120,
+  "isActive": true,
+  "createdAt": "2026-11-04T12:00:00Z"
+}
+```
+

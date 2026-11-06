@@ -139,6 +139,7 @@ sequenceDiagram
 
 ```text
 kyc-kyb/
+├── .agents/skills/kyc-kyb-standards/     # Skill Antigravity, guias e scripts de validação
 ├── docs/                                 # Documentação de arquitetura e pilares
 │   ├── README.md                         # Índice geral da documentação
 │   ├── architecture/                     # Clean Architecture e C4 Model
@@ -147,32 +148,41 @@ kyc-kyb/
 │   └── runbook/                          # Implantação e operações
 ├── src/
 │   ├── Domain/
-│   │   ├── Common/                       # BaseEntity, IAggregateRoot, Result, ResultT
-│   │   ├── Entities/                     # BackgroundCheck, CheckFinding, AuditLogEntry, Tenant, etc.
-│   │   ├── Enums/                        # SubjectType, CheckPurpose, LegalBasis, RiskIndicator, etc.
+│   │   ├── Common/                       # BaseEntity, IAggregateRoot, Result
+│   │   ├── Entities/                     # BackgroundCheck, CheckFinding, AuditLogEntry, Tenant
+│   │   ├── Enums/                        # SubjectType, CheckPurpose, LegalBasis, RiskIndicator
+│   │   ├── Events/                       # CheckCreatedEvent, CheckProcessingStartedEvent, etc.
+│   │   ├── StateMachine/                 # CheckState, CheckStateMachine
 │   │   ├── Repositories/                 # IBackgroundCheckRepository, ITenantRepository, etc.
 │   │   └── ValueObjects/                 # Cpf, Cnpj (IN 2229/2024), ApiKey
 │   ├── Application/
+│   │   ├── Acl/                          # Modelos Canônicos e IProviderAdapter<T>
 │   │   ├── AI/                           # GeminiAiAssistantService, HeuristicFallbackAiService
-│   │   ├── Dtos/                         # CreateCheckRequest, CheckDetailsResponse, etc. (1 arquivo por DTO)
-│   │   ├── Interfaces/                   # ICheckOrchestrator, IRiskPolicyEngine, ProviderResult, etc.
+│   │   ├── Dtos/                         # DTOs de entrada e saída (1 tipo por arquivo)
+│   │   ├── Interfaces/                   # ICheckOrchestrator, IRiskPolicyEngine
 │   │   ├── Rules/                        # RiskPolicyEngine
-│   │   └── UseCases/                     # CreateCheckUseCase, ReviewCheckUseCase, PurgeExpiredChecks, etc.
+│   │   └── UseCases/                     # Casos de uso de negócio
 │   ├── Infrastructure/
-│   │   ├── BackgroundWorkers/            # InMemoryCheckQueue, CheckOrchestrationWorker, DataRetentionPurgeWorker
-│   │   ├── Database/                     # KycKybDbContext, Migrações e Repositórios EF Core
+│   │   ├── Acl/Adapters/                 # ReceitaFederalAdapter, TribunaisAdapter, etc.
+│   │   ├── Audit/                        # DomainEventDispatcher (Audit Hash-Chain SHA-256)
+│   │   ├── BackgroundWorkers/            # Workers de fila e expurgo
+│   │   ├── Database/                     # KycKybDbContext, Conversores AES-256-GCM e Repositórios
+│   │   ├── Logging/                      # PiiSanitizer (mascaramento de logs)
+│   │   ├── Messaging/                    # ChannelMessageBus (filas assíncronas reativas)
 │   │   ├── Orchestration/                # CheckOrchestrator
-│   │   ├── Providers/                    # Receita, Tribunais, PEP, Trabalho Escravo, QSA Mocks
-│   │   ├── Resilience/                   # CircuitBreaker, MemoryCheckCache, CircuitState
-│   │   ├── Security/                     # DataMasker, CurrentTenantContext
+│   │   ├── Providers/                    # Mocks dos provedores externos
+│   │   ├── Resilience/                   # CircuitBreaker, MemoryCheckCache
+│   │   ├── Security/                     # AesEncryptionService, DataMasker
+│   │   ├── Storage/                      # InMemoryAttachmentStorageService com TTL
 │   │   └── Webhooks/                     # WebhookDispatcher (HMAC-SHA256)
 │   └── MiniKycKyb.API/
-│       ├── Controllers/                  # Checks, Tenants, Metering, Audit, AtsSimulator
-│       ├── Middlewares/                  # ApiKeyAuth, RateLimiting (Token Bucket), ExceptionHandling
+│       ├── Controllers/                  # Checks, Tenants, Audit, ProviderWebhooks, Ats
+│       ├── Middlewares/                  # ApiKeyAuth, RateLimiting, ExceptionHandling
 │       └── Program.cs
 ├── tests/
-│   ├── Domain.UnitTests/                 # Testes unitários de CPF, CNPJ e Entidades
+│   ├── Domain.UnitTests/                 # Testes unitários de domínio e State Machine
 │   ├── Application.UnitTests/            # Testes do Motor de Regras e Use Cases
+│   └── IntegrationTests/                 # Testes integrados E2E, ACL, Criptografia e Webhooks
 │   └── IntegrationTests/                 # Testes de Ponta a Ponta com WebApplicationFactory
 ├── demo-ats.sh                           # Script interativo de demonstração ponta a ponta
 ├── docker-compose.yml                    # Stack completa (PostgreSQL + API)
@@ -213,7 +223,7 @@ A API inicializará em **`http://localhost:5000`**.
 
 ## 🧪 Suíte de Testes e Cobertura de Código (>80%)
 
-A qualidade é assegurada por **102 testes automatizados** com cobertura superior a 80% em todas as camadas:
+A qualidade é assegurada por **124 testes automatizados** com cobertura superior a 80% em todas as camadas:
 
 ```bash
 # Executar todos os testes com coleta de cobertura Cobertura
@@ -224,10 +234,10 @@ XDG_RUNTIME_DIR=/tmp dotnet test --collect:"XPlat Code Coverage" --settings cove
 
 | Projeto de Teste | Quantidade de Testes | Status | Cobertura de Linha |
 | --- | --- | --- | --- |
-| **Domain.UnitTests** | **53 testes** | ✅ 100% Passando | **98.55%** |
+| **Domain.UnitTests** | **58 testes** | ✅ 100% Passando | **98.80%** |
 | **Application.UnitTests** | **25 testes** | ✅ 100% Passando | **85.12%** |
-| **IntegrationTests** | **24 testes** | ✅ 100% Passando | **~80.00%** |
-| **Total Consolidado** | **102 testes** | ✅ **Zero Falhas** | **> 85% Médio** |
+| **IntegrationTests** | **41 testes** | ✅ 100% Passando | **82.40%** |
+| **Total Consolidado** | **124 testes** | ✅ **Zero Falhas** | **84.26%** |
 
 ---
 

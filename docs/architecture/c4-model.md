@@ -15,7 +15,7 @@ flowchart TD
     ClientApp["Cliente SaaS / ERP / Fintech\n[Sistema Externo]\nConsome a API REST com API Key para KYC/KYB"]
 
     subgraph Platform["Mini-Plataforma KYC/KYB [Sistema de Software]"]
-        CoreAPI["MiniKycKyb Engine\nOrquestração assíncrona, políticas de risco,\nLGPD por design e assistente de IA"]
+        CoreAPI["MiniKycKyb Engine\nOrquestração assíncrona, políticas de risco,\nCamada Anticorrupção (ACL), LGPD por design e IA"]
     end
 
     RFB["Receita Federal (Simulada)\n[Provedor Externo]"]
@@ -47,14 +47,15 @@ flowchart TD
     end
 
     subgraph KycPlatform["Contêiner da Plataforma MiniKycKyb (.NET 10)"]
-        WebAPI["ASP.NET Core Web API\n[Contêiner Docker / net10.0]\nControllers REST, Middlewares de Autenticação,\nRate Limiting e Mascaramento"]
-        Queue["In-Memory Async Queue\n[Canal Assíncrono]\nDesacoplamento de solicitações e workers"]
-        Worker["Check Orchestration Worker\n[HostedService / net10.0]\nExecuta providers em paralelo, avalia políticas e IA"]
+        WebAPI["ASP.NET Core Web API\n[Contêiner Docker / net10.0]\nControllers REST, Inbound Webhooks, Middlewares de Auth (X-API-Key),\nRate Limiting e Mascaramento (Portas 5000 / 8080)"]
+        Bus["Channel Message Bus\n[Barramento Assíncrono]\nDesacoplamento de webhooks e esteiras com backpressure"]
+        Worker["Check Orchestration Worker\n[HostedService / net10.0]\nExecuta adapters ACL, avalia políticas e IA"]
         PurgeJob["Data Retention Purge Worker\n[BackgroundService / net10.0]\nExpurgo programado de dados pessoais (LGPD)"]
+        AuditDispatcher["Domain Event Audit Dispatcher\n[Event Sinks]\nEncadeamento de hash SHA-256 no banco"]
     end
 
     subgraph DataStore["Camada de Persistência"]
-        PostgresDB[("PostgreSQL 16+\n[Banco de Dados Relacional]\nChecks, Findings, Audit Logs,\nTenants e Métricas de Consumo")]
+        PostgresDB[("PostgreSQL 17\n[Banco de Dados Relacional]\nDados Pessoais Criptografados (AES-256-GCM),\nTrilha Imutável de Auditoria, Tenants e Métricas")]
     end
 
     subgraph ExternalServices["Serviços Externos / Mocks"]
@@ -62,108 +63,42 @@ flowchart TD
         Gemini["Google Gemini AI API"]
     end
 
-    ExternalClient -->|"REST v1 / JSON\n[Porta 8080]"| WebAPI
-    WebAPI -->|"Enfileira checagem"| Queue
-    Queue -->|"Processa assincronamente"| Worker
-    Worker -->|"Executa com Circuit Breaker e Timeout"| MockProviders
+    ExternalClient -->|"REST v1 / JSON\n[Portas 5000 / 8080]"| WebAPI
+    WebAPI -->|"Enfileira no Message Bus"| Bus
+    Bus -->|"Processa assincronamente"| Worker
+    Worker -->|"Executa via Adapters ACL"| MockProviders
     Worker -->|"Gera síntese explicativa"| Gemini
-    WebAPI -->|"Grava e consulta relatórios"| PostgresDB
-    Worker -->|"Persiste relatórios e hash chain"| PostgresDB
-    PurgeJob -->|"Executa anonimização periódica"| PostgresDB
-    Worker -->|"Despacha webhooks assinados"| ExternalClient
+    Worker -->|"Emite Eventos de Domínio"| AuditDispatcher
+    AuditDispatcher -->|"Grava com Hash Chain"| PostgresDB
+    WebAPI -->|"Grava e consulta relatórios criptografados"| PostgresDB
 ```
 
 ---
 
-## 🧩 Nível 3: Diagrama de Componentes (Component)
-
-Evidencia a composição interna da aplicação em termos de componentes e injeção de dependências.
+## 🧩 Nível 3: Diagrama de Componentes da Aplicação
 
 ```mermaid
-flowchart LR
-    subgraph MiniKycKyb_API["MiniKycKyb.API"]
-        ChecksCtrl["ChecksController"]
-        TenantsCtrl["TenantsController"]
-        AuthMid["ApiKeyAuthMiddleware"]
-        RateMid["RateLimitingMiddleware"]
+flowchart TD
+    subgraph ApplicationCore["Application & Domain Core"]
+        UC["Use Cases (CreateCheck, GetCheck, ReviewCheck, Purge)"]
+        SM["CheckStateMachine (Pending ➔ Processing ➔ Review ➔ Approved/Rejected)"]
+        RPE["RiskPolicyEngine (Análise de Risco & Semáforo)"]
+        Canon["Modelos Canônicos ACL (Cadastral, Judicial, Sanções, QSA)"]
     end
 
-    subgraph Application_Layer["Application"]
-        CreateUC["CreateCheckUseCase"]
-        GetUC["GetCheckByIdUseCase"]
-        ReviewUC["ReviewCheckUseCase"]
-        Engine["RiskPolicyEngine"]
-        AiSvc["Gemini / Heuristic AI Service"]
+    subgraph InfraComponents["Infrastructure Components"]
+        Adapters["Adapters Canônicos ACL (ReceitaFederal, Tribunais, etc.)"]
+        Aes["AesEncryptionService (AES-256-GCM enc:det / enc:rnd)"]
+        Sanitizer["PiiSanitizer (Mascaramento de Logs)"]
+        Storage["InMemoryAttachmentStorageService (TTL)"]
+        Dispatcher["DomainEventDispatcher (SHA-256 Hash-Chain)"]
     end
 
-    subgraph Infrastructure_Layer["Infrastructure"]
-        Orchestrator["CheckOrchestrator"]
-        CB["CircuitBreaker"]
-        Cache["MemoryCheckCache"]
-        Dispatcher["WebhookDispatcher"]
-        EF["KycKybDbContext"]
-    end
-
-    ChecksCtrl --> CreateUC
-    ChecksCtrl --> GetUC
-    ChecksCtrl --> ReviewUC
-    CreateUC --> Orchestrator
-    Orchestrator --> CB
-    Orchestrator --> Cache
-    Orchestrator --> Engine
-    Orchestrator --> AiSvc
-    Orchestrator --> EF
-    Orchestrator --> Dispatcher
-    GetUC --> EF
-    ReviewUC --> EF
+    UC --> SM
+    UC --> RPE
+    RPE --> Canon
+    Adapters --> Canon
+    UC --> Dispatcher
+    UC --> Aes
+    UC --> Storage
 ```
-
----
-
-## ⏱️ Nível 4: Diagrama de Sequência Dinâmica (Dynamic)
-
-Representa o ciclo de vida completo de uma checagem disparada pelo ATS até a revisão humana.
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor ATS as ATS Simulator
-    participant API as ChecksController
-    participant Q as InMemoryQueue
-    participant W as OrchestrationWorker
-    participant O as CheckOrchestrator
-    participant P as Mock Providers
-    participant R as RiskPolicyEngine
-    participant AI as Gemini/Heuristic AI
-    participant DB as PostgreSQL
-    actor Compliance as Oficial de Compliance
-
-    ATS->>API: POST /api/v1/checks (Documento, Finalidade, Consentimento)
-    API->>DB: Cria Check em status 'Pending' e registra AuditLog
-    API->>Q: Enfileira CheckId
-    API-->>ATS: 202 Accepted (CheckId, Protocolo)
-
-    W->>Q: Desconecta CheckId da fila
-    W->>O: ExecuteCheckAsync(Check)
-    par Consultas Paralelas aos Provedores
-        O->>P: ReceitaFederalMockProvider (Timeout 2s, CB)
-        O->>P: TribunaisProcessosMockProvider (Timeout 2s, CB)
-        O->>P: ListasRestritivasMockProvider (Timeout 2s, CB)
-        O->>P: TrabalhoEscravoMockProvider (Timeout 2s, CB)
-        O->>P: QsaSociosMockProvider (Timeout 2s, CB)
-    end
-    P-->>O: Retornos dos provedores com Hash SHA-256 de evidência
-    O->>R: EvaluateFindings(Evidências)
-    R-->>O: Lista de Findings (Verde, Amarelo, Vermelho + "Por que este item?")
-    O->>AI: GenerateSummaryAsync(Findings)
-    AI-->>O: Resumo neutro citando evidências (LGPD Art. 20)
-    O->>DB: Atualiza Check ('Completed'/'CompletedWithWarnings') e grava Hash Chain
-    O->>ATS: Dispara Webhook com HMAC-SHA256 (CheckConcluído)
-
-    Compliance->>API: GET /api/v1/checks/{id}
-    API-->>Compliance: 200 OK (Relatório completo com semáforo e IA)
-    Compliance->>API: POST /api/v1/checks/{id}/review (Aprovado com Ressalvas, Justificativa)
-    API->>DB: Registra Decisão Humana e cria AuditLog
-    API-->>Compliance: 200 OK (Conclusão registrada com sucesso)
-```
-
