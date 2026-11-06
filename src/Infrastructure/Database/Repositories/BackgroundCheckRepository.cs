@@ -67,7 +67,38 @@ public class BackgroundCheckRepository : IBackgroundCheckRepository
 
     public async Task UpdateAsync(BackgroundCheck check, CancellationToken cancellationToken = default)
     {
-        _context.BackgroundChecks.Update(check);
+        var entry = _context.Entry(check);
+        if (entry.State == EntityState.Detached)
+        {
+            _context.BackgroundChecks.Attach(check);
+            entry.State = EntityState.Modified;
+        }
+
+        // Remove do ChangeTracker findings que foram removidos do agregado
+        var currentFindingIds = check.Findings.Select(f => f.Id).ToHashSet();
+        var trackedFindings = _context.CheckFindings.Local
+            .Where(f => f.BackgroundCheckId == check.Id)
+            .ToList();
+
+        foreach (var tracked in trackedFindings)
+        {
+            if (!currentFindingIds.Contains(tracked.Id))
+            {
+                _context.CheckFindings.Remove(tracked);
+            }
+        }
+
+        // Garante que findings novos com GUID gerado pelo cliente sejam marcados como Added
+        foreach (var finding in check.Findings)
+        {
+            var findingEntry = _context.Entry(finding);
+            if (findingEntry.State == EntityState.Detached || findingEntry.State == EntityState.Modified)
+            {
+                var existsInDb = await _context.CheckFindings.AnyAsync(f => f.Id == finding.Id, cancellationToken);
+                findingEntry.State = existsInDb ? EntityState.Modified : EntityState.Added;
+            }
+        }
+
         await _context.SaveChangesAsync(cancellationToken);
     }
 }

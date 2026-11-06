@@ -137,4 +137,45 @@ public class ChecksControllerIntegrationTests : IClassFixture<CustomWebApplicati
         var body = await response.Content.ReadAsStringAsync();
         body.Should().Contain("LGPD_CONSENT_REQUIRED");
     }
+
+    [Fact]
+    public async Task CheckWithMultipleRiskFindings_ShouldPersistFindingsAndCompleteWithoutConcurrencyError()
+    {
+        // Documento com 666 que dispara apontamentos em tribunais e situação cadastral
+        var request = new CreateCheckRequest(
+            Document: "66682247257",
+            SubjectType: SubjectType.Person,
+            Name: "Candidato Com Apontamentos",
+            Purpose: CheckPurpose.RecrutamentoESelecao,
+            LegalBasis: LegalBasis.Consentimento,
+            ConsentObtained: true);
+
+        var createResponse = await _client.PostAsJsonAsync("/api/v1/checks", request);
+        createResponse.StatusCode.Should().Be(HttpStatusCode.Accepted);
+
+        var created = await createResponse.Content.ReadFromJsonAsync<CreateCheckResponse>();
+        created.Should().NotBeNull();
+        var checkId = created!.Id;
+
+        // Aguarda processamento assíncrono pelo worker
+        CheckDetailsResponse? checkDetails = null;
+        for (int i = 0; i < 25; i++)
+        {
+            await Task.Delay(200);
+            var getResponse = await _client.GetAsync($"/api/v1/checks/{checkId}");
+            if (getResponse.IsSuccessStatusCode)
+            {
+                checkDetails = await getResponse.Content.ReadFromJsonAsync<CheckDetailsResponse>();
+                if (checkDetails != null && checkDetails.Status is CheckStatus.Completed or CheckStatus.CompletedWithWarnings)
+                {
+                    break;
+                }
+            }
+        }
+
+        checkDetails.Should().NotBeNull();
+        checkDetails!.Status.Should().BeOneOf(CheckStatus.Completed, CheckStatus.CompletedWithWarnings);
+        checkDetails.Findings.Should().NotBeEmpty();
+        checkDetails.OverallRisk.Should().Be(RiskIndicator.Red);
+    }
 }
