@@ -53,9 +53,15 @@ public class WebhookDispatcher : IWebhookDispatcher
             try
             {
                 var signature = ComputeHmacSha256(payloadBytes, sub.Secret);
-                var targetUri = sub.TargetUrl.StartsWith("http://localhost", StringComparison.OrdinalIgnoreCase)
-                    ? new Uri(sub.TargetUrl).PathAndQuery
-                    : sub.TargetUrl;
+                var targetUri = sub.TargetUrl;
+                if (_httpClient.BaseAddress != null && Uri.TryCreate(sub.TargetUrl, UriKind.Absolute, out var parsedAbsolute))
+                {
+                    targetUri = parsedAbsolute.PathAndQuery;
+                }
+                else if (_httpClient.BaseAddress == null && !Uri.TryCreate(sub.TargetUrl, UriKind.Absolute, out _))
+                {
+                    targetUri = $"http://localhost:5000{(sub.TargetUrl.StartsWith('/') ? "" : "/")}{sub.TargetUrl}";
+                }
 
                 using var request = new HttpRequestMessage(HttpMethod.Post, targetUri)
                 {
